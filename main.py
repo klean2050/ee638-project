@@ -68,7 +68,7 @@ def train_eyepacs(contrastive=False, label_transform=False):
         logger=logger,
         max_epochs=hparams["max_epochs"],
         check_val_every_n_epoch=1,
-        log_every_n_steps=50,
+        log_every_n_steps=5,
         sync_batchnorm=True,
         strategy="ddp_find_unused_parameters_false",
         accelerator="gpu",
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     if hparams["dataset"] == "EyePACS":
         print("Training for EyePACS...")
-        train_eyepacs(contrastive=hparams["contrastive"], label_transform=True)
+        train_eyepacs(contrastive=hparams["contrastive"], label_transform=False)
     elif hparams["dataset"] == "VinDR":
         print("Training for VinDR...")
         train_vindr(contrastive=False, label_transform=True)
