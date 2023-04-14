@@ -1,4 +1,8 @@
-"""adapted from https://github.com/usc-sail/fed-multimodal/blob/main/features/simulation_features/simulation_manager.py"""
+"""
+adapted from
+    1) https://github.com/usc-sail/fed-multimodal/blob/main/features/simulation_features/simulation_manager.py
+    2) https://github.com/usc-sail/fleye/blob/main/features/data_processing/eyepacs/preprocessing.py    
+"""
 
 import cv2, numpy as np
 
