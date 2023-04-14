@@ -1,4 +1,4 @@
-import torch.nn as nn, torch.optim as optim
+import torch, torch.nn as nn, torch.optim as optim
 from pytorch_lightning import LightningModule
 from torchvision import models
 from simclr.modules import NT_Xent
@@ -40,7 +40,11 @@ class EyePACS_Model(LightningModule):
         else:
             x, y = batch
             preds = self.forward(x)
-            loss = self.cls_loss(preds, y)
+            # calculate class weights
+            weights = torch.bincount(y).float()
+            weights = [weights.sum() / w for w in weights]
+            loss_fn = nn.CrossEntropyLoss(weight=weights)
+            loss = loss_fn(preds, y)
 
         self.log("Train/loss", loss, sync_dist=True, batch_size=self.hparams.batch_size)
         return loss
@@ -58,7 +62,14 @@ class EyePACS_Model(LightningModule):
             loss = self.cls_loss(preds, y)
 
         self.log("Valid/loss", loss, sync_dist=True, batch_size=self.hparams.batch_size)
-        return loss
+
+        # compute accuracy
+        if not self.hparams.contrastive:
+            preds = preds.argmax(dim=1)
+            acc = (preds == y).float().mean()
+            self.log(
+                "Valid/acc", acc, sync_dist=True, batch_size=self.hparams.batch_size
+            )
 
     def configure_optimizers(self):
         return optim.AdamW(
