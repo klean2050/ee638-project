@@ -1,7 +1,9 @@
-import os, pandas as pd, numpy as np
+import cv2, pandas as pd
+import os, numpy as np
 from torch.utils.data import Dataset
+from utils import resize_and_center_fundus
+from tqdm import tqdm
 from PIL import Image
-
 
 class EyePACS(Dataset):
     def __init__(self, root, split, contrastive, transform=None, label_transform=False):
@@ -26,19 +28,49 @@ class EyePACS(Dataset):
             self.image_paths = self.image_paths[int(0.8 * len(self.image_paths)) :]
         else:
             raise ValueError("Not implemented split")
+        
+        self.images = []
+        for image_path in tqdm(self.image_paths):
+            if os.path.exists(f"data/EyePACS/{image_path.split('/')[-1]}"):
+                image = cv2.imread(f"data/EyePACS/{image_path.split('/')[-1]}", -1)
+                self.images.append(image)
+            else:
+                image = self.preprocess(image_path)
+                cv2.imwrite(
+                    f"data/EyePACS/{image_path.split('/')[-1]}",
+                    image,
+                    [int(cv2.IMWRITE_JPEG_QUALITY), 100]
+                )
+                self.images.append(image)
+
+        self.images = np.stack(self.images)
+        print(self.images.shape)
 
         self.labels = pd.read_csv(root + "trainLabels.csv")["level"].values
         self.labels = self.labels[: len(self.image_paths)]
         print("Loaded {} images.".format(len(self.image_paths)))
 
+    def preprocess(self, image_path):
+        image = cv2.imread(image_path, -1)
+        processed = resize_and_center_fundus(image, diameter=224)
+        if processed is None:
+            raise ValueError("Could not preprocess {}".format(image_path))
+        else:
+            return processed
+
     def distort_label(self, label):
         row = self.markov_matrix[label]
         return np.random.choice(5, p=row)
+    
+    def numpy_to_pil(self, image):
+        image = image.astype(np.uint8)
+        if image.shape[2] == 1:
+            image = np.repeat(image, 3, axis=2)
+        return Image.fromarray(image)
 
     def __getitem__(self, index):
-        image_path = self.image_paths[index]
-        image = Image.open(image_path)
-
+        image = self.images[index]
+        image = self.numpy_to_pil(image)
         label = self.labels[index]
         if self.label_transform:
             label = self.distort_label(label)
